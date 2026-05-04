@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clasificador de Tarjeta</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: rgba(0,0,0,0.09);
+    --border2: rgba(0,0,0,0.05);
+    --text: #18181a;
+    --muted: #71706b;
+    --accent: #1a56db;
+    --accent-light: #eff4ff;
+    --success: #057a55;
+    --success-bg: #f3faf7;
+    --danger: #c81e1e;
+    --danger-bg: #fdf2f2;
+    --warning: #9f580a;
+    --warning-bg: #fff8f1;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.10);
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.3px;
+  }
+  .logo-icon {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .header-note {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface2);
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── LAYOUT ── */
+  main { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+
+  /* ── API KEY BANNER ── */
+  #apiKeySection {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .api-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+  .api-text h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .api-text p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .api-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .api-input-row input {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+  }
+  .api-input-row input:focus { border-color: var(--accent); background: var(--surface); }
+  #apiKeySection.configured {
+    border-color: var(--success);
+    background: var(--success-bg);
+  }
+  #apiKeySection.configured .api-icon::after { content: '✓'; }
+
+  /* ── UPLOAD CARD ── */
+  .upload-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .upload-card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.4px;
+    margin-bottom: 4px;
+  }
+  .upload-card .sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon { font-size: 36px; margin-bottom: 12px; }
+  .drop-title { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .drop-sub { font-size: 12px; color: var(--muted); }
+
+  .options-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .opt-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 130px; }
+  .opt-group label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  select, .inp {
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    width: 100%;
+  }
+  select:focus, .inp:focus { border-color: var(--accent); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #1447c0; }
+  .btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+  .btn-success:hover { background: #046746; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* ── STATUS ── */
+  #status { margin-top: 14px; }
+  .alert {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    border: 1px solid;
+  }
+  .alert-info { background: var(--accent-light); border-color: #bfdbfe; color: var(--accent); }
+  .alert-ok { background: var(--success-bg); border-color: #84e1bc; color: var(--success); }
+  .alert-err { background: var(--danger-bg); border-color: #f8b4b4; color: var(--danger); }
+  .spin {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid #bfdbfe; border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RESULTS ── */
+  #results { display: none; }
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+  }
+  .results-header h3 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+  .results-header .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+  .scard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+  }
+  .scard-label { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+  .scard-value { font-size: 20px; font-weight: 600; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+  .scard-value.red { color: var(--danger); }
+  .scard-value.green { color: var(--success); }
+  .scard-value.blue { color: var(--accent); }
+  .scard-value.amber { color: var(--warning); }
+
+  .filters-row {
+    display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;
+  }
+  .filters-row select, .filters-row input {
+    width: auto; font-size: 12px; padding: 6px 10px;
+  }
+  .filter-count { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  /* ── TABLE ── */
+  .tbl-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .tbl-scroll { overflow-x: auto; max-height: 480px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead { position: sticky; top: 0; z-index: 5; }
+  th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  th.r { text-align: right; }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border2);
+    vertical-align: middle;
+  }
+  td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .cat-select {
+    font-family: var(--font);
+    font-size: 11px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    outline: none;
+    min-width: 130px;
+  }
+  .cat-select:focus { border-color: var(--accent); }
+
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .badge-auto { background: var(--success-bg); color: var(--success); }
+  .badge-manual { background: #fff8f1; color: var(--warning); }
+  .badge-pending { background: var(--danger-bg); color: var(--danger); }
+  .badge-chile { background: var(--accent-light); color: var(--accent); }
+  .badge-santander { background: #fff8f1; color: var(--warning); }
+
+  .cuotas-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .amount { font-family: var(--mono); font-size: 12px; font-weight: 500; }
+  .amount.neg { color: var(--danger); }
+  .amount.pos { color: var(--success); }
+
+  .del-btn {
+    border: none; background: none; cursor: pointer; font-size: 14px;
+    padding: 2px 5px; border-radius: 4px; color: var(--muted);
+    transition: all 0.15s;
+  }
+  .del-btn:hover { background: var(--danger-bg); color: var(--danger); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 32px 20px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">💳</div>
+    Clasificador de Tarjeta
+  </div>
+  <div class="header-note">Banco Chile · Santander</div>
+</header>
+
+<main>
+
+  <!-- API KEY -->
+  <div id="apiKeySection">
+    <div class="api-icon">🔑</div>
+    <div class="api-text" style="flex:1">
+      <h3>API Key de Anthropic</h3>
+      <p>Necesitás tu propia API key para procesar los PDFs. Conseguila gratis en <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>. Se guarda solo en tu navegador, nunca se envía a ningún servidor externo.</p>
+      <div class="api-input-row">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" oninput="handleApiKeyInput()">
+        <button class="btn btn-primary" onclick="saveApiKey()">Guardar</button>
+      </div>
+      <p id="apiKeyStatus" style="font-size:11px;margin-top:6px;display:none;"></p>
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-card">
+    <h2>Subir estado de cuenta</h2>
+    <p class="sub">Arrastrá o seleccioná el PDF del banco · La IA extrae y clasifica todos los movimientos automáticamente</p>
+
+    <div class="drop-zone" id="dropZone"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="event.preventDefault();this.classList.remove('drag');processFile(event.dataTransfer.files[0])">
+      <input type="file" accept=".pdf" onchange="processFile(event.target.files[0]);event.target.value=''">
+      <div class="drop-icon">📄</div>
+      <div class="drop-title">Arrastrá el PDF aquí o hacé clic para seleccionar</div>
+      <div class="drop-sub">Solo archivos PDF · Estado de cuenta mensual</div>
+    </div>
+
+    <div class="options-row">
+      <div class="opt-group">
+        <label>Tarjeta</label>
+        <select id="bankSel">
+          <option value="Chile">Banco Chile</option>
+          <option value="Santander">Santander</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <label>Mes de pago</label>
+        <select id="mnSel">
+          <option value="1">Enero</option><option value="2">Febrero</option>
+          <option value="3">Marzo</option><option value="4">Abril</option>
+          <option value="5" selected>Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option>
+          <option value="9">Septiembre</option><option value="10">Octubre</option>
+          <option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <label>Año</label>
+        <select id="yearSel">
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <div class="results-header">
+      <div>
+        <h3 id="resTitle">Movimientos</h3>
+        <div class="sub" id="resSub"></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-sm" onclick="resetAll()">← Subir otro</button>
+        <button class="btn btn-success btn-sm" onclick="downloadExcel()">⬇ Descargar Excel</button>
+      </div>
+    </div>
+
+    <div class="summary-grid" id="summaryCards"></div>
+
+    <div class="filters-row">
+      <select id="fCat" onchange="renderTable()" style="min-width:160px">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="fConf" onchange="renderTable()">
+        <option value="">Todos</option>
+        <option value="pending">Solo pendientes</option>
+        <option value="auto">Solo automáticos</option>
+      </select>
+      <input class="inp" id="fSearch" placeholder="Buscar..." style="width:150px;font-size:12px;padding:6px 10px;" oninput="renderTable()">
+      <span class="filter-count" id="filterCount"></span>
+    </div>
+
+    <div class="tbl-container">
+      <div class="tbl-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th style="min-width:140px">Categoría</th>
+              <th style="min-width:180px">Descripción</th>
+              <th class="r">Cuotas</th>
+              <th class="r">Monto cuota</th>
+              <th class="r">Monto total</th>
+              <th>Tarjeta</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Clasificador de Tarjeta &mdash; Los PDFs se procesan con <a href="https://anthropic.com" target="_blank">Claude AI</a> · Tu API key se guarda solo en este navegador
+</footer>
+
+<script>
+// ── CONSTANTS ──
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+const CATS = ['Almuerzo','Auto','Cable','Casa','Celular','Cerámica','Clinica','Colegio',
+  'Colegio Materiales','Contribuciones','Dentista','Devolución','Estacionamiento','Facultad',
+  'Farmacia','Gastos Angie','IA','Internet','Nafta','Otros','Peajes','Regalos','Ropa',
+  'Salidas','Seguro','Servicios','Sofia','Summer Camp','Supermercado','Vacaciones','Viajes'];
+
+const CAT_COLORS = {
+  Casa:'#1d4ed8',Supermercado:'#065f46',Colegio:'#5b21b6',Clinica:'#991b1b',
+  Seguro:'#92400e',Servicios:'#1e3a8a',Viajes:'#831843',Ropa:'#064e3b',
+  Salidas:'#7c2d12',Otros:'#374151',Auto:'#365314',Internet:'#0c4a6e',
+  Celular:'#4c1d95',Cable:'#1c1917',Regalos:'#881337',Peajes:'#164e63',
+  Almuerzo:'#78350f',Farmacia:'#14532d',Nafta:'#7f1d1d',Contribuciones:'#312e81',
+  Estacionamiento:'#166534',Devolución:'#701a75',
+};
+
+const PATTERNS = [
+  ['BANCHILE','Seguro'],['COMPARA SEG','Seguro'],['COPA AIRLIN','Viajes'],
+  ['PRIME VIDEO','Cable'],['GOOGLE PLAY','Cable'],['YOUTUBE','Cable'],
+  ['NETFLIX','Cable'],['DISNEY','Cable'],['SPOTIFY','Cable'],['DLOCAL','Cable'],
+  ['FLOW ','Cable'],['MUNICIPALIDAD','Contribuciones'],['CONTRIBUCION','Contribuciones'],
+  ['FORUS','Ropa'],['DECATHLON','Auto'],['MERCADO PAGO','Casa'],['MERPAGO','Casa'],
+  ['MERCADOPAGO','Casa'],['IMPUESTO','Otros'],['RUUF','Casa'],
+  ['COLEGIO SAN JOSE','Colegio'],['COLEGIO','Colegio'],['GTD','Internet'],
+  ['MOVISTAR','Celular'],['ENTEL','Celular'],['WOM','Celular'],['CLARO','Celular'],
+  ['AGUAS MANQUEHUE','Servicios'],['METROGAS','Servicios'],['SABA ','Estacionamiento'],
+  ['PARKING','Estacionamiento'],['EXPRESS PIEDRA','Supermercado'],
+  ['TOTTUS','Supermercado'],['JUMBO','Supermercado'],['LIDER','Supermercado'],
+  ['WALMART','Supermercado'],['SB 6','Supermercado'],['SB 7','Supermercado'],
+  ['CLINICA ALEMANA','Clinica'],['CLINICA','Clinica'],['CENTRO MEDICO','Clinica'],
+  ['HOSPITAL','Clinica'],['COPEC','Nafta'],['SHELL','Nafta'],['PETROBRAS','Nafta'],
+  ['IKEA','Casa'],['H&M','Ropa'],['FALABELLA','Ropa'],['ZARA','Ropa'],
+  ['PARIS','Ropa'],['RIPLEY','Ropa'],['COSTANERA','Peajes'],['AUTOPISTA','Peajes'],
+  ['RUTA DEL','Peajes'],['TAG TOTAL','Peajes'],['AUTO CL','Auto'],
+  ['MECANICO','Auto'],['LUBRICENTRO','Auto'],['UDD','Facultad'],
+  ['LIBRERIA','Colegio Materiales'],['FARMACIA','Farmacia'],['BICE VIDA','Seguro'],
+  ['LATAM','Viajes'],['SKY','Viajes'],['DESPEGAR','Viajes'],['BOOKING','Viajes'],
+  ['AIRBNB','Viajes'],['SUMUP','Supermercado'],['INTERLIGHT','Casa'],
+  ['DAP ECOMMERCE','Casa'],['NOTA DE CREDITO','Devolución'],['INTERCOM','Internet'],
+  ['KAR PARKING','Estacionamiento'],['COSTANERA NORTE','Peajes'],
+];
+
+// ── STATE ──
+let rows = [];
+let apiKey = '';
+
+// ── API KEY ──
+function loadApiKey() {
+  try {
+    const k = localStorage.getItem('antApiKey');
+    if (k) {
+      apiKey = k;
+      document.getElementById('apiKeyInput').value = k;
+      setApiKeyConfigured(true);
+    }
+  } catch(e) {}
+}
+
+function handleApiKeyInput() {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v.startsWith('sk-ant')) {
+    setApiKeyConfigured(false);
+  }
+}
+
+function saveApiKey() {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v || !v.startsWith('sk-ant')) {
+    showApiStatus('La API key debe empezar con sk-ant-...', 'red');
+    return;
+  }
+  apiKey = v;
+  try { localStorage.setItem('antApiKey', v); } catch(e) {}
+  setApiKeyConfigured(true);
+  showApiStatus('API key guardada correctamente.', 'green');
+}
+
+function setApiKeyConfigured(ok) {
+  const sec = document.getElementById('apiKeySection');
+  if (ok) {
+    sec.classList.add('configured');
+    sec.querySelector('.api-icon').textContent = '🔓';
+  } else {
+    sec.classList.remove('configured');
+    sec.querySelector('.api-icon').textContent = '🔑';
+  }
+}
+
+function showApiStatus(msg, color) {
+  const el = document.getElementById('apiKeyStatus');
+  el.textContent = msg;
+  el.style.color = color === 'green' ? 'var(--success)' : 'var(--danger)';
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// ── UTILS ──
+function fmtN(n) {
+  if (n == null || isNaN(n)) return '—';
+  const abs = Math.abs(Math.round(n)).toLocaleString('en-US');
+  return (n < 0 ? '(' + abs + ')' : abs);
+}
+
+function autoClassify(desc) {
+  const u = (desc || '').toUpperCase();
+  for (const [p, c] of PATTERNS) {
+    if (u.includes(p)) return { cat: c, conf: 'auto' };
+  }
+  return { cat: '', conf: 'manual' };
+}
+
+function setStatus(type, msg) {
+  const icons = { loading: '<div class="spin"></div>', ok: '✓', err: '⚠' };
+  const cls = { loading: 'alert-info', ok: 'alert-ok', err: 'alert-err' };
+  document.getElementById('status').innerHTML =
+    `<div class="alert ${cls[type]}">${icons[type]}<span>${msg}</span></div>`;
+}
+
+// ── FILE PROCESSING ──
+async function processFile(file) {
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    setStatus('err', 'El archivo debe ser un PDF.'); return;
+  }
+  if (!apiKey || !apiKey.startsWith('sk-ant')) {
+    setStatus('err', 'Primero guardá tu API key de Anthropic arriba.'); return;
+  }
+
+  const bank = document.getElementById('bankSel').value;
+  const mn   = parseInt(document.getElementById('mnSel').value);
+  const yr   = document.getElementById('yearSel').value;
+
+  setStatus('loading', `Procesando ${file.name} con IA… puede tomar unos segundos.`);
+  document.getElementById('results').style.display = 'none';
+
+  try {
+    const b64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } },
+            { type: 'text', text: `Extraé TODOS los movimientos de este estado de tarjeta de crédito bancaria chilena.
+Retorná ÚNICAMENTE un JSON array válido, sin texto ni markdown:
+[{"fecha":"DD/MM/YYYY","descripcion":"nombre del comercio completo","cuotas":"X/Y","monto_cuota":NUMBER,"monto_total":NUMBER}]
+Reglas:
+- monto_cuota: monto de la cuota mensual (positivo=gasto, negativo=pago/abono/devolución)
+- monto_total: monto original de la compra (igual a monto_cuota si es 1 sola cuota)
+- cuotas: "cuota_actual/total", ej "01/06". Si es 1 cuota usar "1/1"
+- Ignorar filas de subtotales y totales generales
+- Incluir TODOS los movimientos individuales
+Responder SOLO con el JSON array.` }
+          ]
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+
+    let txt = data.content.filter(c => c.type === 'text').map(c => c.text).join('');
+    txt = txt.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(txt);
+
+    rows = parsed.map((r, i) => {
+      const cl = autoClassify(r.descripcion);
+      return {
+        id: i,
+        fecha: r.fecha || '',
+        descripcion: r.descripcion || '',
+        cat: cl.cat,
+        conf: cl.conf,
+        cuotas: r.cuotas || '1/1',
+        monto_cuota: typeof r.monto_cuota === 'number' ? r.monto_cuota : 0,
+        monto_total: typeof r.monto_total === 'number' ? r.monto_total : (r.monto_cuota || 0),
+        tarjeta: bank,
+        mes: mn,
+        anio: yr
+      };
+    });
+
+    setStatus('ok', `${rows.length} movimientos extraídos correctamente.`);
+    showResults(bank, mn, yr);
+
+  } catch(err) {
+    setStatus('err', 'Error: ' + err.message);
+  }
+}
+
+// ── RESULTS ──
+function showResults(bank, mn, yr) {
+  const unc = rows.filter(r => !r.cat).length;
+  document.getElementById('resTitle').textContent =
+    `${MONTHS[mn-1]} ${yr} · Tarjeta ${bank}`;
+  document.getElementById('resSub').textContent =
+    `${rows.length} movimientos · ${unc > 0 ? unc + ' sin clasificar · ' : ''}Revisá las categorías antes de descargar`;
+
+  // populate cat filter
+  const fc = document.getElementById('fCat');
+  fc.innerHTML = '<option value="">Todas las categorías</option>';
+  [...new Set(rows.map(r => r.cat).filter(Boolean))].sort().forEach(c => {
+    const o = document.createElement('option'); o.value = c; o.textContent = c; fc.appendChild(o);
+  });
+
+  renderSummary();
+  renderTable();
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderSummary() {
+  const gastos  = rows.filter(r => r.monto_cuota > 0).reduce((a, r) => a + r.monto_cuota, 0);
+  const abonos  = rows.filter(r => r.monto_cuota < 0).reduce((a, r) => a + r.monto_cuota, 0);
+  const sinCat  = rows.filter(r => !r.cat).length;
+  const nCats   = [...new Set(rows.filter(r => r.cat).map(r => r.cat))].length;
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="scard">
+      <div class="scard-label">Total gastos</div>
+      <div class="scard-value red">$${Math.round(gastos).toLocaleString('en-US')}</div>
+    </div>
+    <div class="scard">
+      <div class="scard-label">Abonos / pagos</div>
+      <div class="scard-value green">$${Math.round(Math.abs(abonos)).toLocaleString('en-US')}</div>
+    </div>
+    <div class="scard">
+      <div class="scard-label">Sin clasificar</div>
+      <div class="scard-value ${sinCat > 0 ? 'amber' : 'green'}">${sinCat}</div>
+    </div>
+    <div class="scard">
+      <div class="scard-label">Categorías</div>
+      <div class="scard-value blue">${nCats}</div>
+    </div>`;
+}
+
+function renderTable() {
+  const fCat  = document.getElementById('fCat').value;
+  const fConf = document.getElementById('fConf').value;
+  const fSr   = document.getElementById('fSearch').value.toLowerCase();
+
+  const filtered = rows.filter(r => {
+    if (fCat && r.cat !== fCat) return false;
+    if (fConf === 'pending' && r.cat) return false;
+    if (fConf === 'auto' && r.conf !== 'auto') return false;
+    if (fSr && !r.descripcion.toLowerCase().includes(fSr)) return false;
+    return true;
+  });
+
+  document.getElementById('filterCount').textContent =
+    `${filtered.length} de ${rows.length} movimientos`;
+
+  const catOpts = CATS.map(c =>
+    `<option value="${c}" ${c === '___' ? 'selected' : ''}>${c}</option>`
+  ).join('');
+
+  document.getElementById('tbody').innerHTML = filtered.map(r => {
+    const confBadge = r.cat
+      ? (r.conf === 'auto'
+        ? `<span class="badge badge-auto">Auto</span>`
+        : `<span class="badge badge-manual">Manual</span>`)
+      : `<span class="badge badge-pending">Pendiente</span>`;
+
+    const tarjBadge = r.tarjeta === 'Chile'
+      ? `<span class="badge badge-chile">Chile</span>`
+      : `<span class="badge badge-santander">Santander</span>`;
+
+    const catSelect = `
+      <select class="cat-select" onchange="updateRow(${r.id},'cat',this.value);renderTable();renderSummary()">
+        <option value="">— Sin categoría —</option>
+        ${CATS.map(c => `<option value="${c}"${c === r.cat ? ' selected' : ''}>${c}</option>`).join('')}
+      </select>`;
+
+    const amtClass = r.monto_cuota < 0 ? 'neg' : '';
+
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--muted);font-family:var(--mono);font-size:11px">${r.fecha}</td>
+      <td>${catSelect}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.descripcion}">${r.descripcion}</td>
+      <td class="r"><span class="cuotas-tag">${r.cuotas}</span></td>
+      <td class="r"><span class="amount ${amtClass}">${fmtN(r.monto_cuota)}</span></td>
+      <td class="r"><span class="amount" style="color:var(--muted)">${fmtN(r.monto_total)}</span></td>
+      <td>${tarjBadge}</td>
+      <td>${confBadge}</td>
+      <td><button class="del-btn" onclick="deleteRow(${r.id})" title="Eliminar">🗑</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateRow(id, key, val) {
+  const r = rows.find(x => x.id === id);
+  if (r) { r[key] = val; r.conf = 'manual'; }
+}
+
+function deleteRow(id) {
+  rows = rows.filter(x => x.id !== id);
+  renderTable();
+  renderSummary();
+}
+
+function resetAll() {
+  rows = [];
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('status').innerHTML = '';
+}
+
+// ── EXCEL EXPORT ──
+function downloadExcel() {
+  if (!rows.length) { alert('No hay datos para exportar.'); return; }
+
+  const mn   = parseInt(document.getElementById('mnSel').value);
+  const yr   = document.getElementById('yearSel').value;
+  const bank = document.getElementById('bankSel').value;
+
+  // Sheet 1: detail
+  const header = ['Fecha','Categoría','Descripción','Tarjeta','Cuotas',
+                  'Monto Cuota ($)','Monto Total ($)','Mes','Año','Estado'];
+  const data = rows.map(r => [
+    r.fecha,
+    r.cat || 'Sin categoría',
+    r.descripcion,
+    r.tarjeta,
+    r.cuotas,
+    r.monto_cuota,
+    r.monto_total,
+    MONTHS[r.mes - 1],
+    parseInt(r.anio),
+    r.cat ? (r.conf === 'auto' ? 'Automático' : 'Manual') : 'Pendiente'
+  ]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+
+  ws['!cols'] = [
+    {wch:12},{wch:38},{wch:22},{wch:12},{wch:8},
+    {wch:16},{wch:16},{wch:12},{wch:6},{wch:12}
+  ];
+
+  // Number format for money columns
+  for (let R = 1; R <= data.length; R++) {
+    for (const ci of [5, 6]) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: ci });
+      if (ws[addr] && typeof ws[addr].v === 'number') ws[addr].z = '#,##0';
+    }
+  }
+
+  // Sheet 2: summary by category
+  const catMap = {};
+  rows.forEach(r => {
+    const c = r.cat || 'Sin categoría';
+    if (!catMap[c]) catMap[c] = { cat: c, n: 0, cuota: 0, total: 0 };
+    catMap[c].n++;
+    catMap[c].cuota  += r.monto_cuota  || 0;
+    catMap[c].total  += r.monto_total  || 0;
+  });
+
+  const sumRows = Object.values(catMap)
+    .sort((a, b) => b.cuota - a.cuota)
+    .map(c => [c.cat, c.n, c.cuota, c.total]);
+
+  const grandTotal = sumRows.reduce((a, r) => a + r[2], 0);
+  sumRows.push(['TOTAL', rows.length, grandTotal, '']);
+
+  const sumHeader = ['Categoría','N° Movimientos','Total Cuotas del Mes ($)','Total Compras ($)'];
+  const ws2 = XLSX.utils.aoa_to_sheet([sumHeader, ...sumRows]);
+  ws2['!cols'] = [{wch:24},{wch:16},{wch:24},{wch:20}];
+  for (let R = 1; R <= sumRows.length; R++) {
+    for (const ci of [2, 3]) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: ci });
+      if (ws2[addr] && typeof ws2[addr].v === 'number') ws2[addr].z = '#,##0';
+    }
+  }
+
+  const sheetName = `${MONTHS[mn-1]} ${yr}`;
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumen por categoría');
+
+  XLSX.writeFile(wb, `tarjeta_${bank}_${MONTHS[mn-1]}_${yr}.xlsx`);
+}
+
+// ── INIT ──
+loadApiKey();
+</script>
+</body>
+</html>
